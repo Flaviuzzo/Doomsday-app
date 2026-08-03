@@ -155,7 +155,7 @@
     <span style="color:var(--muted); font-size:0.78rem;">18 dicembre 2026 — cinema</span>
   </div>
 
-  <button class="reset-btn" onclick="if(confirm('Azzerare tutte le spunte di questo piano su tutti i dispositivi?')){localStorage.removeItem('doomsdayPlanEp'); if(syncDb){try{syncDb.ref(SYNC_PATH).set({});}catch(e){}} location.reload();}">Azzera piano</button>
+  <button class="reset-btn" onclick="resetPlan()">Azzera piano</button>
 </main>
 
 <footer>
@@ -644,9 +644,19 @@ function render() {
   document.getElementById("progressLabel").textContent = doneMain + " / " + totalMain + " (" + pct + "%)";
 }
 
-render();
+function resetPlan() {
+  if (!confirm("Azzerare tutte le spunte di questo piano su tutti i dispositivi?")) return;
+  localStorage.removeItem(STORAGE_KEY);
+  if (syncDb) {
+    syncDb.ref(SYNC_PATH).set({})
+      .then(() => location.reload())
+      .catch(() => location.reload());
+  } else {
+    location.reload();
+  }
+}
 
-if ("serviceWorker" in navigator) {
+render();
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch(() => {});
   });
