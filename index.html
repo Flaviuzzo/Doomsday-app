@@ -316,14 +316,12 @@ function saveState(state) {
 
 if (syncDb) {
   syncDb.ref(SYNC_PATH).on("value", (snapshot) => {
-    const remote = snapshot.val();
-    if (remote) {
-      const current = JSON.stringify(loadState());
-      const incoming = JSON.stringify(remote);
-      if (current !== incoming) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
-        render();
-      }
+    const remote = snapshot.val() || {};
+    const current = JSON.stringify(loadState());
+    const incoming = JSON.stringify(remote);
+    if (current !== incoming) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+      render();
     }
   });
 }
