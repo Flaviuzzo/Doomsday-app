@@ -352,21 +352,29 @@ function buildPlan(state) {
     block.push({ xmenItem: xmenAll[i], vqItem });
   }
 
-  // coda MCU "normale": tutto tranne Vision Quest, + gli episodi VQ in eccesso, solo quelli non ancora visti
-  const mcuRest = mcuTrack.filter(item => item.groupId !== "visionquest" && !isChecked(state, item)).map(i => ({ ...i, tag: "mcu" }));
-  const earlyVQUnchecked = earlyVQ.filter(item => !isChecked(state, item)).map(i => ({ ...i, tag: "mcu" }));
-  const mainQueue = [...mcuRest, ...earlyVQUnchecked];
+  // coda MCU "normale": tutto tranne Vision Quest, + gli episodi VQ in eccesso
+  // ORDINE COMPLETO E FISSO (include anche i già visti, serve per assegnare una data stabile)
+  const mcuRestFull = mcuTrack.filter(item => item.groupId !== "visionquest").map(i => ({ ...i, tag: "mcu" }));
+  const earlyVQFull = earlyVQ.map(i => ({ ...i, tag: "mcu" }));
+  const mainQueueFull = [...mcuRestFull, ...earlyVQFull];
 
-  return { mainQueue, block, X, V, pairCount, earlyVQ };
+  // mappa id -> posizione fissa nella sequenza (non cambia mai, indipendente dalle spunte)
+  const fullOrderIndexMap = {};
+  mainQueueFull.forEach((item, idx) => { fullOrderIndexMap[item.id] = idx; });
+
+  // coda di ciò che resta da vedere, stesso ordine, solo i non ancora visti
+  const mainQueue = mainQueueFull.filter(item => !isChecked(state, item));
+
+  return { mainQueue, block, X, V, pairCount, earlyVQ, fullOrderIndexMap };
 }
 
-function computeMainSchedule(mainQueue) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const CATCHUP_START = new Date(2026, 7, 4); CATCHUP_START.setHours(0,0,0,0); // martedì 4 agosto 2026
-  const anchor = today < CATCHUP_START ? CATCHUP_START : today;
+const CATCHUP_START = new Date(2026, 7, 4); CATCHUP_START.setHours(0,0,0,0); // martedì 4 agosto 2026
+
+function computeMainSchedule(mainQueue, fullOrderIndexMap) {
   const msPerDay = 86400000;
-  return mainQueue.map((item, i) => {
-    const date = new Date(anchor.getTime() + i * msPerDay); // un titolo al giorno, consecutivo, senza salti
+  return mainQueue.map((item) => {
+    const idx = fullOrderIndexMap[item.id]; // posizione FISSA, assegnata una volta sola
+    const date = new Date(CATCHUP_START.getTime() + idx * msPerDay); // un titolo al giorno, data stabile
     return { ...item, scheduledDate: date };
   });
 }
@@ -386,10 +394,9 @@ function computeBlockSchedule(block) {
 function render() {
   const state = loadState();
   const plan = buildPlan(state);
-  const mainScheduled = computeMainSchedule(plan.mainQueue);
+  const mainScheduled = computeMainSchedule(plan.mainQueue, plan.fullOrderIndexMap);
   const blockScheduled = computeBlockSchedule(plan.block);
   const today = new Date(); today.setHours(0,0,0,0);
-  const CATCHUP_START = new Date(2026, 7, 4); CATCHUP_START.setHours(0,0,0,0);
   const anchor = today < CATCHUP_START ? CATCHUP_START : today;
 
   const totalLeft = plan.mainQueue.length + plan.X;
